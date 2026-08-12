@@ -8,6 +8,7 @@ import type {
   Webhook,
   WebhookDelivery,
 } from "./types";
+import { buildFixedCatalog, buildFixedCredentials, FIXED_PRODUCT_NEXT_ID, FIXED_VARIATION_NEXT_ID } from "./fixtures";
 
 interface Store {
   products: Product[];
@@ -21,19 +22,24 @@ interface Store {
   nextId: Record<string, number>;
 }
 
-function emptyStore(): Store {
+// The product catalog and the 5 access keys are fixed/hardcoded on purpose: this is a
+// test lab, so every cold start (each serverless invocation may be a fresh process, with
+// no shared memory) must expose the exact same catalog and the exact same, never-masked
+// connection credentials — not a randomly regenerated one.
+function baselineStore(): Store {
+  const { products, variations } = buildFixedCatalog();
   return {
-    products: [],
-    variations: [],
+    products,
+    variations,
     customers: [],
     orders: [],
     webhooks: [],
     webhookDeliveries: [],
-    credentials: [],
+    credentials: buildFixedCredentials(),
     logs: [],
     nextId: {
-      product: 1,
-      variation: 1,
+      product: FIXED_PRODUCT_NEXT_ID,
+      variation: FIXED_VARIATION_NEXT_ID,
       customer: 1,
       order: 1,
       webhook: 1,
@@ -43,10 +49,11 @@ function emptyStore(): Store {
 }
 
 // Survives Next.js dev hot-reload (module re-evaluation) by pinning to globalThis.
-// This is an in-memory JSON store only — data resets whenever the server process restarts.
+// This is an in-memory store only — data other than the fixed catalog/credentials
+// resets whenever the server process restarts.
 const globalForStore = globalThis as unknown as { __woobridgeStore?: Store };
 
-export const db: Store = globalForStore.__woobridgeStore ?? emptyStore();
+export const db: Store = globalForStore.__woobridgeStore ?? baselineStore();
 if (!globalForStore.__woobridgeStore) {
   globalForStore.__woobridgeStore = db;
 }
@@ -58,7 +65,7 @@ export function nextId(kind: keyof Store["nextId"]): number {
 }
 
 export function resetStore() {
-  const fresh = emptyStore();
+  const fresh = baselineStore();
   Object.assign(db, fresh);
 }
 

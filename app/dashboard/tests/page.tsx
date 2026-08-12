@@ -2,6 +2,9 @@
 
 import { useState } from "react";
 import { Card, CardHeader, Badge, Button } from "@/components/ui";
+import { FIXED_CREDENTIAL_SEEDS } from "@/lib/fixtures";
+
+const DEMO_CRED = FIXED_CREDENTIAL_SEEDS[0];
 
 interface TestCase {
   name: string;
@@ -109,13 +112,7 @@ export default function TestsPage() {
     setRunning(true);
     setResults([]);
 
-    const credRes = await fetch("/api/credentials", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ description: "Test Suite (auto)", permissions: "read_write" }),
-    });
-    const cred = await credRes.json();
-    const auth = `Basic ${btoa(`${cred.key}:${cred.secret}`)}`;
+    const auth = `Basic ${btoa(`${DEMO_CRED.key}:${DEMO_CRED.secret}`)}`;
 
     const tests = buildTests();
     for (const t of tests) {

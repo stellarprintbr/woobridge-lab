@@ -6,6 +6,9 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   const { id } = await params;
   const credential = db.credentials.find((c) => c.id === id);
   if (!credential) return NextResponse.json({ error: "not found" }, { status: 404 });
+  if (credential.fixed) {
+    return NextResponse.json({ error: "credenciais fixas não podem ser revogadas" }, { status: 400 });
+  }
   credential.revoked_at = isoNow();
   return NextResponse.json({ ok: true });
 }

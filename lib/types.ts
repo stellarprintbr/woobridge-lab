@@ -5,6 +5,8 @@ export interface Credential {
   key: string; // ck_...
   secretHash: string; // sha256 of cs_...
   secretPreview: string; // last 4 chars for display
+  secret?: string; // plaintext, only set for fixed demo credentials (shown permanently, never masked)
+  fixed?: boolean; // true for the 5 built-in, permanent access keys
   permissions: Permission;
   description: string;
   created_at: string;

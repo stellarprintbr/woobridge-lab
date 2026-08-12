@@ -2,6 +2,9 @@
 
 import { useState } from "react";
 import { Card, CardHeader, Badge, Button, JsonBlock, statusColor } from "@/components/ui";
+import { FIXED_CREDENTIAL_SEEDS } from "@/lib/fixtures";
+
+const DEMO_CRED = FIXED_CREDENTIAL_SEEDS[0];
 
 const ACTIONS = [
   { id: "get_products", label: "GET products", method: "GET", path: "/wp-json/wc/v3/products?per_page=5" },
@@ -16,8 +19,8 @@ interface Step {
 }
 
 export default function ErpSimulatorPage() {
-  const [ck, setCk] = useState("");
-  const [cs, setCs] = useState("");
+  const [ck, setCk] = useState(DEMO_CRED.key);
+  const [cs, setCs] = useState(DEMO_CRED.secret);
   const [running, setRunning] = useState(false);
   const [steps, setSteps] = useState<Step[]>([]);
   const [result, setResult] = useState<{ status: number; body: unknown } | null>(null);

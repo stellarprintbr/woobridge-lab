@@ -2,6 +2,11 @@
 
 import { useState } from "react";
 import { Card, CardHeader, Badge, methodColor } from "@/components/ui";
+import { FIXED_CREDENTIAL_SEEDS } from "@/lib/fixtures";
+
+// Ambiente de teste: a chave usada nos exemplos é uma das 5 credenciais fixas do
+// laboratório, exposta de propósito para copiar e colar direto (não é um segredo real).
+const DEMO_CRED = FIXED_CREDENTIAL_SEEDS[0];
 
 interface Endpoint {
   method: string;
@@ -30,16 +35,19 @@ export default function DocsPage() {
   const [selected, setSelected] = useState<Endpoint>(ENDPOINTS[0]);
   const origin = typeof window !== "undefined" ? window.location.origin : "https://SEU-DOMINIO";
 
-  const curl = `curl -X ${selected.method} \\\n"${origin}${selected.path}${selected.query ? "?per_page=10" : ""}" \\\n-u "ck_xxxxx:cs_xxxxx"${selected.body ? ` \\\n-H "Content-Type: application/json" \\\n-d '${selected.body}'` : ""}`;
+  const curl = `curl -X ${selected.method} \\\n"${origin}${selected.path}${selected.query ? "?per_page=10" : ""}" \\\n-u "${DEMO_CRED.key}:${DEMO_CRED.secret}"${selected.body ? ` \\\n-H "Content-Type: application/json" \\\n-d '${selected.body}'` : ""}`;
 
-  const js = `const res = await fetch("${origin}${selected.path}", {\n  method: "${selected.method}",\n  headers: {\n    Authorization: "Basic " + btoa("ck_xxxxx:cs_xxxxx"),${selected.body ? '\n    "Content-Type": "application/json",' : ""}\n  },${selected.body ? `\n  body: JSON.stringify(${selected.body}),` : ""}\n});\nconst data = await res.json();`;
+  const js = `const res = await fetch("${origin}${selected.path}", {\n  method: "${selected.method}",\n  headers: {\n    Authorization: "Basic " + btoa("${DEMO_CRED.key}:${DEMO_CRED.secret}"),${selected.body ? '\n    "Content-Type": "application/json",' : ""}\n  },${selected.body ? `\n  body: JSON.stringify(${selected.body}),` : ""}\n});\nconst data = await res.json();`;
 
-  const php = `$response = wp_remote_${selected.method === "GET" ? "get" : "post"}(\n  "${origin}${selected.path}",\n  [\n    'headers' => ['Authorization' => 'Basic ' . base64_encode('ck_xxxxx:cs_xxxxx')],${selected.body ? `\n    'body' => json_encode(${selected.body}),` : ""}\n  ]\n);`;
+  const php = `$response = wp_remote_${selected.method === "GET" ? "get" : "post"}(\n  "${origin}${selected.path}",\n  [\n    'headers' => ['Authorization' => 'Basic ' . base64_encode('${DEMO_CRED.key}:${DEMO_CRED.secret}')],${selected.body ? `\n    'body' => json_encode(${selected.body}),` : ""}\n  ]\n);`;
 
   return (
     <div className="grid grid-cols-3 gap-6">
       <div className="col-span-1 space-y-1">
-        <h1 className="text-xl font-semibold mb-3">Documentação da API</h1>
+        <h1 className="text-xl font-semibold mb-1">Documentação da API</h1>
+        <p className="text-xs text-text-muted mb-3">
+          Exemplos usam a credencial fixa <span className="mono">{DEMO_CRED.key}</span> — ambiente de teste, chave exposta de propósito.
+        </p>
         {ENDPOINTS.map((e, i) => (
           <button
             key={i}

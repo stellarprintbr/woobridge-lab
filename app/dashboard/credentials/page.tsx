@@ -7,6 +7,7 @@ interface Credential {
   id: string;
   key: string;
   secretPreview: string;
+  fixed: boolean;
   permissions: string;
   description: string;
   created_at: string;
@@ -51,7 +52,12 @@ export default function CredentialsPage() {
 
   async function testConnection(key: string) {
     setTesting(key);
-    const secret = created?.key === key ? created.secret : prompt(`Cole o Consumer Secret completo para ${key} (não é armazenado em texto puro, então não pode ser recuperado)`);
+    const match = credentials.find((c) => c.key === key);
+    const secret = created?.key === key
+      ? created.secret
+      : match?.fixed
+      ? match.secretPreview
+      : prompt(`Cole o Consumer Secret completo para ${key} (não é armazenado em texto puro, então não pode ser recuperado)`);
     if (!secret) {
       setTesting(null);
       return;
@@ -118,13 +124,59 @@ export default function CredentialsPage() {
         </Card>
       )}
 
-      <Card>
-        <CardHeader title="Credenciais existentes" />
+      <Card className="border-purple/40">
+        <CardHeader title="5 acessos fixos (permanentes, sempre iguais)" />
+        <div className="px-5 pb-2 pt-1 text-xs text-text-muted">
+          Estas credenciais são fixas no código-fonte: não mudam entre deploys ou reinícios do servidor, e o
+          secret nunca é ocultado. Use qualquer uma delas para conectar seu ERP.
+        </div>
         <div className="divide-y divide-border">
-          {credentials.length === 0 && (
-            <div className="px-5 py-8 text-center text-sm text-text-muted">Nenhuma credencial ainda.</div>
+          {credentials.filter((c) => c.fixed).map((c) => (
+            <div key={c.id} className="px-5 py-3 space-y-2">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="mono text-xs sm:text-sm space-y-0.5">
+                  <div>Key: <span className="text-text">{c.key}</span></div>
+                  <div>Secret: <span className="text-green">{c.secretPreview}</span></div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge color="purple">{c.permissions}</Badge>
+                  <Badge color="green">fixa</Badge>
+                </div>
+              </div>
+              <div className="text-xs text-text-muted flex items-center justify-between flex-wrap gap-2">
+                <span>
+                  {c.description}
+                  {c.last_used_at && ` · último uso ${new Date(c.last_used_at).toLocaleString("pt-BR")}`}
+                </span>
+                <div className="flex items-center gap-3">
+                  {testResult[c.key] && <span className="mono">{testResult[c.key]}</span>}
+                  <button
+                    className="text-blue hover:underline disabled:opacity-50"
+                    disabled={testing === c.key}
+                    onClick={() => testConnection(c.key)}
+                  >
+                    Testar conexão
+                  </button>
+                  <button
+                    className="text-text-muted hover:underline"
+                    onClick={() => navigator.clipboard.writeText(`${c.key}:${c.secretPreview}`)}
+                  >
+                    copiar
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader title="Credenciais adicionais (criadas manualmente)" />
+        <div className="divide-y divide-border">
+          {credentials.filter((c) => !c.fixed).length === 0 && (
+            <div className="px-5 py-8 text-center text-sm text-text-muted">Nenhuma credencial adicional ainda.</div>
           )}
-          {credentials.map((c) => (
+          {credentials.filter((c) => !c.fixed).map((c) => (
             <div key={c.id} className="px-5 py-3 space-y-2">
               <div className="flex items-center justify-between">
                 <div className="mono text-sm">

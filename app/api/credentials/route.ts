@@ -8,7 +8,10 @@ function publicView(c: Credential) {
   return {
     id: c.id,
     key: c.key,
-    secretPreview: `cs_${"*".repeat(12)}${c.secretPreview}`,
+    // Fixed demo credentials are never masked — this is a test lab, the secret is
+    // meant to be visible and reused, not hidden after a one-time reveal.
+    secretPreview: c.fixed ? c.secret! : `cs_${"*".repeat(12)}${c.secretPreview}`,
+    fixed: !!c.fixed,
     permissions: c.permissions,
     description: c.description,
     created_at: c.created_at,

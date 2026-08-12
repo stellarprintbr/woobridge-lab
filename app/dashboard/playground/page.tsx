@@ -2,12 +2,15 @@
 
 import { useState } from "react";
 import { Card, CardHeader, Badge, Button, JsonBlock, statusColor } from "@/components/ui";
+import { FIXED_CREDENTIAL_SEEDS } from "@/lib/fixtures";
+
+const DEMO_CRED = FIXED_CREDENTIAL_SEEDS[0];
 
 export default function PlaygroundPage() {
   const [method, setMethod] = useState("GET");
   const [path, setPath] = useState("/wp-json/wc/v3/products");
-  const [ck, setCk] = useState("");
-  const [cs, setCs] = useState("");
+  const [ck, setCk] = useState(DEMO_CRED.key);
+  const [cs, setCs] = useState(DEMO_CRED.secret);
   const [body, setBody] = useState('{\n  "name": "Produto Teste",\n  "sku": "TEST-001",\n  "regular_price": "100.00"\n}');
   const [result, setResult] = useState<{ status: number; headers: Record<string, string>; body: unknown; ms: number } | null>(null);
   const [loading, setLoading] = useState(false);
