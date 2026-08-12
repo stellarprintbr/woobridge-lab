@@ -2,11 +2,7 @@
 
 import { useState } from "react";
 import { Card, CardHeader, Badge, methodColor } from "@/components/ui";
-import { FIXED_CREDENTIAL_SEEDS } from "@/lib/fixtures";
-
-// Ambiente de teste: a chave usada nos exemplos é uma das 5 credenciais fixas do
-// laboratório, exposta de propósito para copiar e colar direto (não é um segredo real).
-const DEMO_CRED = FIXED_CREDENTIAL_SEEDS[0];
+import { DEMO_CREDENTIAL as DEMO_CRED } from "@/lib/demo-credential";
 
 interface Endpoint {
   method: string;

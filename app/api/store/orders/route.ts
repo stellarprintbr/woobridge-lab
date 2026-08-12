@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { listOrders } from "@/lib/repo";
 
 export async function GET() {
-  return NextResponse.json([...db.orders].sort((a, b) => b.id - a.id));
+  const orders = await listOrders();
+  return NextResponse.json([...orders].sort((a, b) => b.id - a.id));
 }

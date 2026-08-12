@@ -1,9 +1,10 @@
 import { wooRoute } from "@/lib/route-handler";
-import { db } from "@/lib/db";
+import { listProducts } from "@/lib/repo";
 
 export const GET = wooRoute("read", async (_req, ctx) => {
+  const products = await listProducts();
   const set = new Map<number, { id: number; name: string; slug: string }>();
-  for (const p of db.products) {
+  for (const p of products) {
     for (const c of p.categories) set.set(c.id, c);
   }
   const items = Array.from(set.values());

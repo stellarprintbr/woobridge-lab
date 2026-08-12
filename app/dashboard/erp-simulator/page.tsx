@@ -2,9 +2,7 @@
 
 import { useState } from "react";
 import { Card, CardHeader, Badge, Button, JsonBlock, statusColor } from "@/components/ui";
-import { FIXED_CREDENTIAL_SEEDS } from "@/lib/fixtures";
-
-const DEMO_CRED = FIXED_CREDENTIAL_SEEDS[0];
+import { DEMO_CREDENTIAL as DEMO_CRED } from "@/lib/demo-credential";
 
 const ACTIONS = [
   { id: "get_products", label: "GET products", method: "GET", path: "/wp-json/wc/v3/products?per_page=5" },

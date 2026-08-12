@@ -1,12 +1,12 @@
 import { wooRoute } from "@/lib/route-handler";
-import { db, nextId } from "@/lib/db";
-import { paginate, sortItems, isoNow, money } from "@/lib/format";
+import { listOrders, listProducts, createOrder } from "@/lib/repo";
+import { paginate, sortItems, money } from "@/lib/format";
 import { dispatchEvent } from "@/lib/webhooks";
-import type { Order, OrderLineItem } from "@/lib/types";
+import type { OrderLineItem } from "@/lib/types";
 
 export const GET = wooRoute("read", async (_req, ctx) => {
   const p = ctx.url.searchParams;
-  let items = db.orders;
+  let items = await listOrders();
 
   const status = p.get("status");
   if (status) items = items.filter((o) => o.status === status);
@@ -37,11 +37,10 @@ export const GET = wooRoute("read", async (_req, ctx) => {
 
 export const POST = wooRoute("write", async (req) => {
   const payload = await req.json().catch(() => ({}));
-  const now = isoNow();
-  const id = nextId("order");
+  const products = await listProducts();
 
   const lineItems: OrderLineItem[] = (payload.line_items ?? []).map((li: Partial<OrderLineItem>, idx: number) => {
-    const product = db.products.find((p) => p.id === li.product_id);
+    const product = products.find((p) => p.id === li.product_id);
     const qty = li.quantity ?? 1;
     const price = product ? parseFloat(product.price) : parseFloat(String(li.price ?? "0"));
     const total = price * qty;
@@ -65,17 +64,12 @@ export const POST = wooRoute("write", async (req) => {
   const shippingTotal = parseFloat(payload.shipping_total ?? "0") || 0;
   const discountTotal = parseFloat(payload.discount_total ?? "0") || 0;
 
-  const order: Order = {
-    id,
-    number: String(1000 + id),
+  const order = await createOrder({
     status: payload.status ?? "pending",
     currency: payload.currency ?? "BRL",
-    currency_symbol: "R$",
-    date_created: now,
-    date_modified: now,
-    discount_total: money(discountTotal),
-    shipping_total: money(shippingTotal),
-    total: money(itemsTotal + shippingTotal - discountTotal),
+    discount_total: discountTotal,
+    shipping_total: shippingTotal,
+    total: itemsTotal + shippingTotal - discountTotal,
     payment_method: payload.payment_method ?? "",
     payment_method_title: payload.payment_method_title ?? "",
     transaction_id: payload.transaction_id ?? "",
@@ -84,8 +78,7 @@ export const POST = wooRoute("write", async (req) => {
     shipping: payload.shipping ?? {},
     customer_note: payload.customer_note ?? "",
     line_items: lineItems,
-  };
-  db.orders.push(order);
+  });
   dispatchEvent("order.created", order);
   return { status: 201, body: order };
 });

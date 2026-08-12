@@ -1,8 +1,8 @@
-import { db } from "./db";
 import { sha256 } from "./crypto";
 import { Errors } from "./errors";
 import type { Credential, Permission } from "./types";
 import { isoNow } from "./format";
+import { getCredentialByKey, touchCredential } from "./repo";
 
 export interface AuthResult {
   credential: Credential;
@@ -20,7 +20,7 @@ function decodeBasicAuth(header: string): { key: string; secret: string } | null
   }
 }
 
-export function authenticate(req: Request, requiredPermission: "read" | "write"): AuthResult {
+export async function authenticate(req: Request, requiredPermission: "read" | "write"): Promise<AuthResult> {
   const url = new URL(req.url);
   let key: string | null = null;
   let secret: string | null = null;
@@ -43,7 +43,7 @@ export function authenticate(req: Request, requiredPermission: "read" | "write")
     throw Errors.authRequired();
   }
 
-  const credential = db.credentials.find((c) => c.key === key);
+  const credential = await getCredentialByKey(key);
   if (!credential) throw Errors.authInvalid();
   if (credential.revoked_at) throw Errors.authInvalid();
   if (credential.secretHash !== sha256(secret)) throw Errors.authInvalid();
@@ -52,7 +52,7 @@ export function authenticate(req: Request, requiredPermission: "read" | "write")
     throw requiredPermission === "read" ? Errors.cannotView() : Errors.cannotEdit();
   }
 
-  credential.last_used_at = isoNow();
+  await touchCredential(credential.id, isoNow());
 
   return { credential };
 }

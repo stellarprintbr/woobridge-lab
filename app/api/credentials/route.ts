@@ -1,27 +1,10 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { listCredentials, createCredential } from "@/lib/repo";
 import { randomToken, sha256 } from "@/lib/crypto";
-import { isoNow } from "@/lib/format";
-import type { Credential, Permission } from "@/lib/types";
-
-function publicView(c: Credential) {
-  return {
-    id: c.id,
-    key: c.key,
-    // Fixed demo credentials are never masked — this is a test lab, the secret is
-    // meant to be visible and reused, not hidden after a one-time reveal.
-    secretPreview: c.fixed ? c.secret! : `cs_${"*".repeat(12)}${c.secretPreview}`,
-    fixed: !!c.fixed,
-    permissions: c.permissions,
-    description: c.description,
-    created_at: c.created_at,
-    last_used_at: c.last_used_at,
-    revoked_at: c.revoked_at,
-  };
-}
+import type { Permission } from "@/lib/types";
 
 export async function GET() {
-  return NextResponse.json(db.credentials.map(publicView));
+  return NextResponse.json(await listCredentials());
 }
 
 export async function POST(req: Request) {
@@ -32,19 +15,14 @@ export async function POST(req: Request) {
   const key = `ck_${randomToken(20)}`;
   const secret = `cs_${randomToken(20)}`;
 
-  const credential: Credential = {
-    id: crypto.randomUUID(),
+  const credential = await createCredential({
     key,
+    secret,
     secretHash: sha256(secret),
     secretPreview: secret.slice(-4),
     permissions,
     description,
-    created_at: isoNow(),
-    last_used_at: null,
-    revoked_at: null,
-  };
-  db.credentials.push(credential);
+  });
 
-  // Secret is only ever returned here, at creation time.
-  return NextResponse.json({ ...publicView(credential), secret }, { status: 201 });
+  return NextResponse.json(credential, { status: 201 });
 }

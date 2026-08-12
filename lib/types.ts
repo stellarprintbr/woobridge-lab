@@ -3,10 +3,9 @@ export type Permission = "read" | "write" | "read_write";
 export interface Credential {
   id: string;
   key: string; // ck_...
-  secretHash: string; // sha256 of cs_...
-  secretPreview: string; // last 4 chars for display
-  secret?: string; // plaintext, only set for fixed demo credentials (shown permanently, never masked)
-  fixed?: boolean; // true for the 5 built-in, permanent access keys
+  secret: string; // cs_..., plaintext — this is a test lab, keys are meant to be visible
+  secretHash: string; // sha256 of secret, used to verify Basic Auth
+  secretPreview: string; // last 4 chars, kept for compatibility
   permissions: Permission;
   description: string;
   created_at: string;

@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { listRequestLogs } from "@/lib/repo";
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
-  let items = db.logs;
+  let items = await listRequestLogs();
 
   const method = url.searchParams.get("method");
   if (method) items = items.filter((l) => l.method === method);

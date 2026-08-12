@@ -30,13 +30,14 @@ export default function WizardPage() {
 
   async function stepCredential() {
     setCredState({ status: "running" });
-    // Usa a primeira das 5 credenciais fixas do laboratório em vez de gerar uma nova —
-    // essas chaves são hardcoded e nunca mudam entre deploys/reinícios.
-    const res = await fetch("/api/credentials", { cache: "no-store" });
-    const list = await res.json();
-    const fixed = list.find((c: { fixed: boolean }) => c.fixed) ?? list[0];
-    setCred({ key: fixed.key, secret: fixed.secretPreview });
-    setCredState({ status: "done", detail: fixed.key });
+    const res = await fetch("/api/credentials", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ description: "Wizard Demo", permissions: "read_write" }),
+    });
+    const data = await res.json();
+    setCred({ key: data.key, secret: data.secret });
+    setCredState({ status: "done", detail: data.key });
   }
 
   async function stepTest() {

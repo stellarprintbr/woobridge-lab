@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { authenticate } from "./auth";
 import { WooError } from "./errors";
-import { pushLog } from "./db";
+import { insertRequestLog } from "./repo";
 import { isoNow } from "./format";
 import type { Credential, RequestLog } from "./types";
 
@@ -44,7 +44,7 @@ export function wooRoute(permission: "read" | "write", handler: Handler) {
     const ctx: WooContext = { cred: undefined as unknown as Credential, params, url, headers: {} };
 
     try {
-      const { credential } = authenticate(req, permission);
+      const { credential } = await authenticate(req, permission);
       ctx.cred = credential;
       credentialId = credential.id;
       consumerKey = credential.key;
@@ -57,24 +57,23 @@ export function wooRoute(permission: "read" | "write", handler: Handler) {
       if (ctx.headers["X-WP-Total"]) res.headers.set("X-WP-Total", ctx.headers["X-WP-Total"]!);
       if (ctx.headers["X-WP-TotalPages"]) res.headers.set("X-WP-TotalPages", ctx.headers["X-WP-TotalPages"]!);
 
-      logRequest();
+      await logRequest();
       return res;
     } catch (err) {
       if (err instanceof WooError) {
         status = err.status;
         responseBody = err.toJSON();
-        logRequest();
+        await logRequest();
         return NextResponse.json(err.toJSON(), { status: err.status });
       }
       status = 500;
       responseBody = { code: "woobridge_internal_error", message: (err as Error).message, data: { status: 500 } };
-      logRequest();
+      await logRequest();
       return NextResponse.json(responseBody, { status: 500 });
     }
 
-    function logRequest() {
-      const log: RequestLog = {
-        id: crypto.randomUUID(),
+    async function logRequest() {
+      const log: Omit<RequestLog, "id"> = {
         credential_id: credentialId,
         consumer_key: consumerKey,
         method: req.method,
@@ -89,7 +88,11 @@ export function wooRoute(permission: "read" | "write", handler: Handler) {
         user_agent: req.headers.get("user-agent") ?? "unknown",
         created_at: isoNow(),
       };
-      pushLog(log);
+      try {
+        await insertRequestLog(log);
+      } catch {
+        // logging must never break the actual API response
+      }
     }
   };
 }

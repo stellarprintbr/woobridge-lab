@@ -65,6 +65,7 @@ export default function ProductsPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-xs text-text-muted border-b border-border">
+                <th className="px-4 py-2"></th>
                 <th className="px-4 py-2">ID</th>
                 <th className="px-4 py-2">Nome</th>
                 <th className="px-4 py-2">SKU</th>
@@ -78,6 +79,12 @@ export default function ProductsPage() {
             <tbody className="divide-y divide-border">
               {products.map((p) => (
                 <tr key={p.id}>
+                  <td className="px-4 py-2">
+                    {p.images?.[0] && (
+                      // eslint-disable-next-line @next/next/no-img-element -- external placeholder URL, not worth next/image config for a test lab
+                      <img src={p.images[0].src} alt="" className="w-8 h-8 rounded object-cover border border-border" />
+                    )}
+                  </td>
                   <td className="px-4 py-2 mono text-text-muted">{p.id}</td>
                   <td className="px-4 py-2">{p.name}</td>
                   <td className="px-4 py-2 mono text-xs">{p.sku}</td>
@@ -95,7 +102,7 @@ export default function ProductsPage() {
               ))}
               {products.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-text-muted">
+                  <td colSpan={9} className="px-4 py-8 text-center text-text-muted">
                     Nenhum produto. Use &quot;Novo produto&quot; ou o Assistente de Configuração para popular dados demo.
                   </td>
                 </tr>

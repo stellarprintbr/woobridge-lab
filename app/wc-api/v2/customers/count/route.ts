@@ -1,6 +1,7 @@
-import { db } from "@/lib/db";
+import { listCustomers } from "@/lib/repo";
 import { wooRoute } from "@/lib/route-handler";
 
 export const GET = wooRoute("read", async () => {
-  return { status: 200, body: { count: db.customers.length } };
+  const customers = await listCustomers();
+  return { status: 200, body: { count: customers.length } };
 });

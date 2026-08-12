@@ -1,13 +1,13 @@
 import { createHmac } from "crypto";
-import { db, nextId } from "./db";
 import { isoNow } from "./format";
-import type { WebhookTopic, WebhookDelivery } from "./types";
+import { listActiveWebhooksForTopic, insertWebhookDelivery } from "./repo";
+import type { WebhookTopic } from "./types";
 
 const MAX_ATTEMPTS = 3;
 const BACKOFF_MS = [0, 500, 1500];
 
 export async function dispatchEvent(topic: WebhookTopic, resource: unknown) {
-  const matching = db.webhooks.filter((w) => w.topic === topic && w.status === "active");
+  const matching = await listActiveWebhooksForTopic(topic);
   for (const webhook of matching) {
     fireWithRetry(webhook.id, topic, webhook.delivery_url, webhook.secret, resource).catch(() => {});
   }
@@ -51,8 +51,7 @@ async function fireWithRetry(
       responseBody = `Delivery failed: ${(err as Error).message}`;
     }
 
-    const delivery: WebhookDelivery = {
-      id: nextId("delivery"),
+    await insertWebhookDelivery({
       webhook_id: webhookId,
       topic,
       url,
@@ -64,9 +63,7 @@ async function fireWithRetry(
       attempt,
       success,
       created_at: isoNow(),
-    };
-    db.webhookDeliveries.unshift(delivery);
-    if (db.webhookDeliveries.length > 300) db.webhookDeliveries.length = 300;
+    });
 
     if (success) return;
   }

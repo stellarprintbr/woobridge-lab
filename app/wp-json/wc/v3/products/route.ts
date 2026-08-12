@@ -1,13 +1,12 @@
 import { wooRoute } from "@/lib/route-handler";
-import { db, nextId } from "@/lib/db";
-import { paginate, sortItems, isoNow, money } from "@/lib/format";
+import { listProducts, createProduct } from "@/lib/repo";
+import { paginate, sortItems } from "@/lib/format";
 import { Errors } from "@/lib/errors";
 import { dispatchEvent } from "@/lib/webhooks";
-import type { Product } from "@/lib/types";
 
 export const GET = wooRoute("read", async (_req, ctx) => {
   const p = ctx.url.searchParams;
-  let items = db.products;
+  let items = await listProducts();
 
   const search = p.get("search");
   if (search) items = items.filter((i) => i.name.toLowerCase().includes(search.toLowerCase()));
@@ -42,45 +41,15 @@ export const GET = wooRoute("read", async (_req, ctx) => {
 });
 
 export const POST = wooRoute("write", async (req) => {
-  let payload: Partial<Product>;
+  let payload: Record<string, unknown>;
   try {
     payload = await req.json();
   } catch {
     throw Errors.invalidParam();
   }
-  if (!payload.name) throw Errors.invalidParam({ name: "name is required" });
+  if (!payload.name || typeof payload.name !== "string") throw Errors.invalidParam({ name: "name is required" });
 
-  const now = isoNow();
-  const id = nextId("product");
-  const regular = payload.regular_price ?? "0.00";
-  const product: Product = {
-    id,
-    name: payload.name,
-    slug: payload.slug ?? payload.name.toLowerCase().replace(/\s+/g, "-"),
-    type: payload.type ?? "simple",
-    status: payload.status ?? "publish",
-    sku: payload.sku ?? `SKU-${id}`,
-    price: payload.sale_price || regular,
-    regular_price: money(parseFloat(String(regular)) || 0),
-    sale_price: payload.sale_price ?? "",
-    description: payload.description ?? "",
-    short_description: payload.short_description ?? "",
-    manage_stock: payload.manage_stock ?? false,
-    stock_quantity: payload.stock_quantity ?? null,
-    stock_status: payload.stock_status ?? "instock",
-    weight: payload.weight ?? "",
-    length: payload.length ?? "",
-    width: payload.width ?? "",
-    height: payload.height ?? "",
-    virtual: payload.virtual ?? false,
-    downloadable: payload.downloadable ?? false,
-    permalink: `https://woobridge.lab/produto/${payload.slug ?? id}`,
-    categories: payload.categories ?? [],
-    images: payload.images ?? [],
-    date_created: now,
-    date_modified: now,
-  };
-  db.products.push(product);
+  const product = await createProduct(payload as { name: string });
   dispatchEvent("product.created", product);
   return { status: 201, body: product };
 });

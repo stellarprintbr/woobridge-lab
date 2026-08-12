@@ -1,6 +1,6 @@
-import { db, nextId, resetStore } from "./db";
-import { isoNow, money } from "./format";
-import type { Customer, Order, OrderLineItem, Webhook } from "./types";
+import { supabase } from "./supabase";
+import { listProducts, createCustomer, createOrder, createWebhook } from "./repo";
+import type { Order, OrderLineItem, Webhook } from "./types";
 
 const FIRST_NAMES = ["João", "Maria", "Pedro", "Ana", "Lucas", "Juliana", "Carlos", "Fernanda", "Rafael", "Beatriz", "Gustavo", "Camila", "Bruno", "Larissa", "Thiago", "Patrícia", "Diego", "Amanda", "Felipe", "Letícia"];
 const LAST_NAMES = ["Silva", "Souza", "Oliveira", "Santos", "Pereira", "Costa", "Ferreira", "Rodrigues", "Almeida", "Gomes"];
@@ -20,18 +20,30 @@ function pick<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-export function seedDemoStore() {
-  // resetStore() already restores the fixed product catalog and the 5 fixed access
-  // keys — this only (re)generates customers, orders and webhooks on top of that
-  // same, unchanging catalog.
-  resetStore();
+// Clears the demo/ephemeral data (customers, orders, webhooks + their history and the
+// request log) but leaves products and credentials alone — those are real, persisted
+// resources managed through the dashboard, not regenerated on every reset.
+export async function resetStore() {
+  const db = supabase();
+  await db.from("webhook_deliveries").delete().not("id", "is", null);
+  await db.from("request_logs").delete().not("id", "is", null);
+  await db.from("orders").delete().not("id", "is", null);
+  await db.from("webhooks").delete().not("id", "is", null);
+  await db.from("customers").delete().not("id", "is", null);
+}
 
-  const now = isoNow();
+export async function seedDemoStore() {
+  await resetStore();
 
+  const products = await listProducts();
+  if (products.length === 0) {
+    throw new Error("Nenhum produto encontrado — rode supabase/schema.sql (com a seção de seed) antes.");
+  }
+
+  const customers = [];
   for (let i = 0; i < 20; i++) {
     const first = pick(FIRST_NAMES);
     const last = pick(LAST_NAMES);
-    const id = nextId("customer");
     const address = {
       first_name: first,
       last_name: last,
@@ -40,31 +52,27 @@ export function seedDemoStore() {
       state: pick(["SP", "RJ", "MG", "PR", "RS"]),
       postcode: `${Math.floor(Math.random() * 90000 + 10000)}-${Math.floor(Math.random() * 900 + 100)}`,
       country: "BR",
-      email: `${first.toLowerCase()}.${last.toLowerCase()}${id}@example.com.br`,
       phone: `(11) 9${Math.floor(Math.random() * 90000000 + 10000000)}`,
     };
-    const customer: Customer = {
-      id,
-      email: address.email!,
+    const email = `${first.toLowerCase()}.${last.toLowerCase()}${i}@example.com.br`;
+    const customer = await createCustomer({
+      email,
       first_name: first,
       last_name: last,
-      username: `${first.toLowerCase()}${last.toLowerCase()}${id}`,
-      role: "customer",
-      billing: { ...address },
-      shipping: { ...address },
-      date_created: now,
-      date_modified: now,
-    };
-    db.customers.push(customer);
+      username: `${first.toLowerCase()}${last.toLowerCase()}${i}`,
+      billing: { ...address, email },
+      shipping: { ...address, email },
+    });
+    customers.push(customer);
   }
 
   for (let i = 0; i < 30; i++) {
-    const customer = pick(db.customers);
+    const customer = pick(customers);
     const items: OrderLineItem[] = [];
     const itemCount = 1 + Math.floor(Math.random() * 3);
     let total = 0;
     for (let j = 0; j < itemCount; j++) {
-      const product = pick(db.products);
+      const product = pick(products);
       const qty = 1 + Math.floor(Math.random() * 3);
       const price = parseFloat(product.price);
       const lineTotal = price * qty;
@@ -76,38 +84,30 @@ export function seedDemoStore() {
         variation_id: 0,
         quantity: qty,
         tax_class: "",
-        subtotal: money(lineTotal),
+        subtotal: lineTotal.toFixed(2),
         subtotal_tax: "0.00",
-        total: money(lineTotal),
+        total: lineTotal.toFixed(2),
         total_tax: "0.00",
         sku: product.sku,
-        price: money(price),
+        price: price.toFixed(2),
       });
     }
     const shipping = 15 + Math.random() * 20;
     const payment = pick(PAYMENT_METHODS);
-    const id = nextId("order");
-    const order: Order = {
-      id,
-      number: String(1000 + id),
+    await createOrder({
       status: pick(STATUSES),
       currency: "BRL",
-      currency_symbol: "R$",
-      date_created: now,
-      date_modified: now,
-      discount_total: "0.00",
-      shipping_total: money(shipping),
-      total: money(total + shipping),
+      discount_total: 0,
+      shipping_total: shipping,
+      total: total + shipping,
       payment_method: payment.method,
       payment_method_title: payment.title,
       transaction_id: `TXN-${Math.floor(Math.random() * 1000000)}`,
       customer_id: customer.id,
-      billing: { ...customer.billing },
-      shipping: { ...customer.shipping },
-      customer_note: "",
+      billing: customer.billing,
+      shipping: customer.shipping,
       line_items: items,
-    };
-    db.orders.push(order);
+    });
   }
 
   const webhookUrls = [
@@ -123,26 +123,19 @@ export function seedDemoStore() {
     "customer.created",
   ];
   for (let i = 0; i < 5; i++) {
-    const id = nextId("webhook");
-    const webhook: Webhook = {
-      id,
+    await createWebhook({
       name: `Webhook Demo ${i + 1}`,
       status: "active",
       topic: topics[i],
       delivery_url: webhookUrls[i % webhookUrls.length],
-      secret: `whsec_${Math.random().toString(36).slice(2)}`,
-      date_created: now,
-      date_modified: now,
-    };
-    db.webhooks.push(webhook);
+    });
   }
 
   return {
-    products: db.products.length,
-    variations: db.variations.length,
-    customers: db.customers.length,
-    orders: db.orders.length,
-    webhooks: db.webhooks.length,
+    products: products.length,
+    customers: customers.length,
+    orders: 30,
+    webhooks: 5,
   };
 }
 
